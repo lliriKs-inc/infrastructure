@@ -32,6 +32,12 @@ write_files:
       git clone ${repo_url} /opt/vet/app
 
       cd /opt/vet/app
+      cat > .env <<EOF
+      AWS_ACCESS_KEY_ID=${s3_access_key}
+      AWS_SECRET_ACCESS_KEY=${s3_secret_key}
+      S3_BUCKET_NAME=${s3_bucket_name}
+      EOF
+      
       docker compose up -d --build
 
 runcmd:

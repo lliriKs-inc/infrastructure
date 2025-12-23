@@ -35,6 +35,9 @@ resource "yandex_compute_instance_group" "ig" {
     metadata = {
       user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
         repo_url = var.repo_url
+        s3_access_key      = yandex_iam_service_account_static_access_key.storage_key.access_key
+        s3_secret_key      = yandex_iam_service_account_static_access_key.storage_key.secret_key
+        s3_bucket_name     = yandex_storage_bucket.vet_bucket.bucket
       })
 
       ssh-keys = "${var.vm_user}:${var.ssh_public_key}"
@@ -56,5 +59,5 @@ resource "yandex_compute_instance_group" "ig" {
     max_expansion   = 0
   }
 
-  depends_on = [time_sleep.wait_for_sa_permissions]
+  depends_on = [time_sleep.wait_for_ig_sa_permissions]
 }
