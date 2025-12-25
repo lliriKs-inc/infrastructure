@@ -7,8 +7,6 @@ resource "yandex_compute_instance_group" "ig" {
   folder_id          = var.folder_id
   service_account_id = yandex_iam_service_account.ig_sa.id
 
-  
-
   instance_template {
     platform_id = "standard-v3"
 
@@ -34,10 +32,12 @@ resource "yandex_compute_instance_group" "ig" {
 
     metadata = {
       user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-        repo_url = var.repo_url
-        s3_access_key      = yandex_iam_service_account_static_access_key.storage_key.access_key
-        s3_secret_key      = yandex_iam_service_account_static_access_key.storage_key.secret_key
-        s3_bucket_name     = yandex_storage_bucket.vet_bucket.bucket
+        repo_url          = var.repo_url
+        s3_access_key     = yandex_iam_service_account_static_access_key.storage_key.access_key
+        s3_secret_key     = yandex_iam_service_account_static_access_key.storage_key.secret_key
+        s3_bucket_name    = yandex_storage_bucket.vet_bucket.bucket
+        postgres_host     = yandex_compute_instance.postgres_vm.network_interface[0].ip_address
+        postgres_password = var.db_password
       })
 
       ssh-keys = "${var.vm_user}:${var.ssh_public_key}"
@@ -59,5 +59,36 @@ resource "yandex_compute_instance_group" "ig" {
     max_expansion   = 0
   }
 
-  depends_on = [time_sleep.wait_for_ig_sa_permissions]
+  health_check {
+    interval            = 15
+    timeout             = 10
+    unhealthy_threshold = 3
+    healthy_threshold   = 2
+
+    http_options {
+      port = 8084
+      path = "/health"
+    }
+  }
+
+
+  application_load_balancer {
+    target_group_name = "vet-tg"
+  }
+
+  depends_on = [
+    time_sleep.wait_for_ig_sa_permissions,
+    yandex_compute_instance.postgres_vm
+  ]
 }
+
+output "instance_group_id" {
+  value       = yandex_compute_instance_group.ig.id
+  description = "ID of the Instance Group"
+}
+
+output "target_group_id" {
+  value       = yandex_compute_instance_group.ig.application_load_balancer[0].target_group_id
+  description = "ID of the Target Group for ALB"
+}
+

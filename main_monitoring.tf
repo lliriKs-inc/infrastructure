@@ -9,14 +9,14 @@ resource "yandex_monitoring_dashboard" "vet_dashboard" {
     chart {
       chart_id = "chart_rps"
       title    = "Balancer RPS"
-      
+
       queries {
         target {
           query = "series_sum(load_balancer.requests_count_per_second{service=\"application-load-balancer\", load_balancer=\"${yandex_alb_load_balancer.alb.id}\"})"
         }
       }
     }
-    
+
     position {
       x = 0
       y = 0
@@ -30,7 +30,7 @@ resource "yandex_monitoring_dashboard" "vet_dashboard" {
     chart {
       chart_id = "chart_connections"
       title    = "Active Connections"
-      
+
       queries {
         target {
           # ВОТ ТУТ БЫЛА ОШИБКА, теперь правильно:
@@ -38,7 +38,7 @@ resource "yandex_monitoring_dashboard" "vet_dashboard" {
         }
       }
     }
-    
+
     position {
       x = 20
       y = 0
@@ -52,7 +52,7 @@ resource "yandex_monitoring_dashboard" "vet_dashboard" {
     chart {
       chart_id = "http_received"
       title    = "HTTP_received_bytes_per_second"
-      
+
       queries {
         target {
           # Здесь обычно работает так (по backend_group, а не load_balancer):
@@ -60,7 +60,7 @@ resource "yandex_monitoring_dashboard" "vet_dashboard" {
         }
       }
     }
-    
+
     position {
       x = 0
       y = 10

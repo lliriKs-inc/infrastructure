@@ -12,8 +12,18 @@ write_files:
     content: |
       #!/usr/bin/env bash
       set -e
+      
+      # Логирование всего вывода
+      exec > >(tee /var/log/vet-start.log)
+      exec 2>&1
+      
+      echo "=== Vet Clinic Setup Started at $(date) ==="
+      echo "Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id || echo 'unknown')"
 
-      # Install Docker (official repo)
+      # ========================================
+      # УСТАНОВКА DOCKER
+      # ========================================
+      echo "Installing Docker..."
       install -m 0755 -d /etc/apt/keyrings
       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
       chmod a+r /etc/apt/keyrings/docker.gpg
@@ -25,20 +35,97 @@ write_files:
       apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
       systemctl enable --now docker
+      
+      # Ждем готовности Docker
+      echo "Waiting for Docker daemon to be ready..."
+      timeout 30 bash -c 'until docker info &>/dev/null; do echo "Waiting..."; sleep 2; done'
+      echo "Docker is ready"
 
-      # Pull repo
+      # ========================================
+      # КЛОНИРОВАНИЕ РЕПОЗИТОРИЯ
+      # ========================================
+      echo "Cloning repository: ${repo_url}"
       rm -rf /opt/vet/app
       mkdir -p /opt/vet/app
-      git clone ${repo_url} /opt/vet/app
+      
+      if ! git clone ${repo_url} /opt/vet/app; then
+        echo "Failed to clone repository"
+        exit 1
+      fi
+      
+      echo "Repository cloned successfully"
 
+            # ========================================
+      # СОЗДАНИЕ .ENV ФАЙЛА
+      # ========================================
       cd /opt/vet/app
+      echo "Creating .env file..."
       cat > .env <<EOF
+      POSTGRES_HOST=${postgres_host}
+      POSTGRES_PASSWORD=${postgres_password}
+      POSTGRES_USER=postgres
+      POSTGRES_DB=vetclinicdb
       AWS_ACCESS_KEY_ID=${s3_access_key}
       AWS_SECRET_ACCESS_KEY=${s3_secret_key}
       S3_BUCKET_NAME=${s3_bucket_name}
+      ASPNETCORE_ENVIRONMENT=Production
       EOF
+
+      echo ".env file created"
+
+
+      # ========================================
+      # СБОРКА И ЗАПУСК ПРИЛОЖЕНИЯ
+      # ========================================
+      echo "Building and starting application..."
+      echo "This may take 2-3 minutes..."
       
-      docker compose up -d --build
+      if ! docker compose up -d --build; then
+        echo "Failed to start application"
+        docker compose logs
+        exit 1
+      fi
+
+      echo "Docker Compose started"
+
+      # ========================================
+      # ПРОВЕРКА ЗДОРОВЬЯ ПРИЛОЖЕНИЯ
+      # ========================================
+      echo "Waiting for application to become healthy..."
+      HEALTHY=false
+      
+      for i in {1..60}; do
+        echo "Health check attempt $i/60..."
+        
+        # Проверяем что контейнер запущен
+        if ! docker ps | grep -q myapp; then
+          echo "Container not running yet..."
+          sleep 2
+          continue
+        fi
+        
+        # Проверяем health endpoint
+        if curl -f -s http://localhost:8084/health &>/dev/null; then
+          HEALTH_STATUS=$(curl -s http://localhost:8084/health)
+          echo "Application is HEALTHY! Status: $HEALTH_STATUS"
+          HEALTHY=true
+          break
+        fi
+        
+        sleep 2
+      done
+
+      if [ "$HEALTHY" = false ]; then
+        echo "Application failed to become healthy after 120 seconds"
+        echo "=== Docker Container Status ==="
+        docker ps -a
+        echo "=== Application Logs ==="
+        docker logs myapp 2>&1 | tail -100
+        exit 1
+      fi
+
+      echo "=== Setup Completed Successfully at $(date) ==="
+      echo "Application is accessible at http://localhost:8084"
 
 runcmd:
-  - [ bash, -lc, "/opt/vet/start.sh > /var/log/vet-start.log 2>&1" ]
+  - [ bash, -lc, "/opt/vet/start.sh" ]

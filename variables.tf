@@ -55,3 +55,25 @@ variable "repo_url" {
   type    = string
   default = "https://github.com/lliriKs-inc/vet-yandex-proj/"
 }
+
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "aws_access_key_id" {
+  type        = string
+  description = "Yandex Object Storage Access Key"
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  type        = string
+  description = "Yandex Object Storage Secret Key"
+  sensitive   = true
+}
+
+variable "s3_bucket_name" {
+  type        = string
+  description = "S3 Bucket Name for photo storage"
+}
