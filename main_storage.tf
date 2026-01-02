@@ -10,6 +10,14 @@ resource "yandex_resourcemanager_folder_iam_member" "storage_admin" {
   member    = "serviceAccount:${yandex_iam_service_account.storage_sa.id}"
 }
 
+# Роль для вызова Cloud Functions (нужна API Gateway)
+resource "yandex_resourcemanager_folder_iam_member" "storage_sa_function_invoker" {
+  folder_id = var.folder_id
+  role      = "functions.functionInvoker"
+  member    = "serviceAccount:${yandex_iam_service_account.storage_sa.id}"
+}
+
+
 #resource "time_sleep" "wait_for_storage_sa_permissions" {
 #  create_duration = "30s"
 #  depends_on = [

@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: Vet Ticket API
+  version: 1.0.0
+
+paths:
+  /ticket/{appointmentId}:
+    get:
+      summary: Generate PDF ticket
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ${function_id}
+        service_account_id: ${service_account_id}
+        payload_format_version: '1.0'
+      responses:
+        '302':
+          description: Redirect to PDF

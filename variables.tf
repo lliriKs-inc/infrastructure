@@ -77,3 +77,10 @@ variable "s3_bucket_name" {
   type        = string
   description = "S3 Bucket Name for photo storage"
 }
+
+variable "ticket_internal_secret" {
+  type        = string
+  description = "Secret for internal ticket API calls"
+  sensitive   = true
+}
+

@@ -32,13 +32,17 @@ resource "yandex_compute_instance_group" "ig" {
 
     metadata = {
       user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-        repo_url          = var.repo_url
-        s3_access_key     = yandex_iam_service_account_static_access_key.storage_key.access_key
-        s3_secret_key     = yandex_iam_service_account_static_access_key.storage_key.secret_key
-        s3_bucket_name    = yandex_storage_bucket.vet_bucket.bucket
-        postgres_host     = yandex_compute_instance.postgres_vm.network_interface[0].ip_address
+
+        repo_url         = var.repo_url
+        postgres_host    = yandex_compute_instance.postgres_vm.network_interface[0].ip_address
         postgres_password = var.db_password
+        s3_access_key    = yandex_iam_service_account_static_access_key.storage_key.access_key
+        s3_secret_key    = yandex_iam_service_account_static_access_key.storage_key.secret_key
+        s3_bucket_name   = yandex_storage_bucket.vet_bucket.bucket
+        ticket_internal_secret = var.ticket_internal_secret
+        ticket_api_domain      = yandex_api_gateway.ticket_api.domain
       })
+
 
       ssh-keys = "${var.vm_user}:${var.ssh_public_key}"
     }
@@ -78,7 +82,8 @@ resource "yandex_compute_instance_group" "ig" {
 
   depends_on = [
     time_sleep.wait_for_ig_sa_permissions,
-    yandex_compute_instance.postgres_vm
+    yandex_compute_instance.postgres_vm,
+    yandex_api_gateway.ticket_api
   ]
 }
 
